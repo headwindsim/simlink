@@ -1,0 +1,30 @@
+{
+  "name": "simlink",
+  "version": "1.0.0",
+  "bin": "bin/index.js",
+  "scripts": {
+    "postinstall": "node scripts/install.mjs",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/index.mjs",
+    "generate-windows": "node sripts/build.mjs && pkg --compress Brotli -t latest-win-x64 -o bin/simlink.exe ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@flybywiresim/msfs-nodejs": "github:liz3/msfs-nodejs",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "node-hide-console-window": "^2.2.0",
+    "systray2": "^2.1.4"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.2",
+    "pkg": "^5.8.1"
+  },
+  "pkg": {
+    "assets": ["./node_modules/systray2/traybin/*.exe", "assets/icon.ico"]
+
+  }
+}
