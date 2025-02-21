@@ -1,4 +1,4 @@
-name: vmain
+name: development
 on:
   push:
     branches: [main]
@@ -11,8 +11,6 @@ jobs:
     env:
       RELEASE_ZIP_NAME: hdw-simlink.zip
       BUILD_DIR_NAME: development
-      # MAIN_PRE_RELEASE_ID: 101378539
-      # MAIN_PRE_RELEASE_TAG: vmain
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -43,4 +41,4 @@ jobs:
         env:
           CLOUDFLARE_WORKER_PASSWORD: ${{ secrets.CLOUDFLARE_WORKER_PASSWORD }}
           CF_BUCKET_DESTINATION: addons/simlink/development
-        run: ./scripts/cdn.sh ${{ env.CF_BUCKET_DESTINATION }} ./build-modules
+        run: node scripts\cdn.js ${{ env.CF_BUCKET_DESTINATION }} ./build-modules
