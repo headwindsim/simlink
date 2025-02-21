@@ -68,7 +68,7 @@ const purge = async (filename) => {
         const putOptions = {
             method: 'POST',
             headers: {
-                'X-HDW-Access-Key': CLOUDFLARE_WORKER_PASSWORD,
+                'X-HDW-Access-Key': PASSWORD,
                 'Content-Length': 0,
             },
         };
