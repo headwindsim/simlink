@@ -43,4 +43,4 @@ jobs:
         env:
           CLOUDFLARE_WORKER_PASSWORD: ${{ secrets.CLOUDFLARE_WORKER_PASSWORD }}
           CF_BUCKET_DESTINATION: addons/simlink/development
-        run: ./scripts/cdn-cf.sh ${{ env.CF_BUCKET_DESTINATION }} ./build-modules
+        run: ./scripts/cdn.sh ${{ env.CF_BUCKET_DESTINATION }} ./build-modules
