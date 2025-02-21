@@ -5,21 +5,19 @@ function getVersion() {
     process.exit(1);
   }
 
-  // e.g. "hues-a339x-dal-v1.2.3"
+  // e.g. "v1.2.3"
   const { tag, shortHash } = buildInfo;
 
   if (tag) {
     // Attempt to parse a version from the tag. Adjust the regex to your tag pattern:
-    // This regex looks for "-v" followed by something like "1.2.3"
-    const match = tag.match(/-v(\d+\.\d+\.\d+)/);
+    // This regex looks for "v" followed by something like "1.2.3"
+    const match = tag.match(/^v(\d+\.\d+\.\d+)$/);
     if (match) {
-      // e.g. match[1] is "1.2.3"
       return match[1];
     }
-    // If there's a tag but not in the expected format, log a warning and fallback
-    console.warn(`[!] Tag "${tag}" not in the expected format. Using short commit hash instead.`);
+    console.warn(`[!] Tag "${tag}" not in the expected format.`);
   }
-
+  
   // Fallback to short commit hash
   if (shortHash) {
     return shortHash;
