@@ -337,7 +337,7 @@ app_state.server.get("/groundspeed/:id", (req, res) => {
 const healthServer = express();
 
 healthServer.get("/health", (req, res) => {
-  res.json({ message: "ok" });
+  res.json({ status: "ok" });
 });
 
 healthServer.get("/kill", (req, res) => {
