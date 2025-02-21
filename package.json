@@ -6,7 +6,7 @@
     "postinstall": "node scripts/install.mjs",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/index.mjs",
-    "generate-windows": "node scripts/build.mjs && pkg --compress Brotli -t latest-win-x64 -o bin/simlink.exe . && node scripts/modules.mjs"
+    "generate-windows": "node scripts/build.mjs && pkg --compress Brotli -t latest-win-x64 -o bin/simlink.exe ."
   },
   "keywords": [],
   "author": "",
