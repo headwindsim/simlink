@@ -1,0 +1,46 @@
+name: vmain
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    # Prevent running this on forks
+    if: github.repository_owner == 'headwindsim'
+    runs-on: windows-latest
+    env:
+      RELEASE_ZIP_NAME: hdw-simlink.zip
+      BUILD_DIR_NAME: development
+      # MAIN_PRE_RELEASE_ID: 101378539
+      # MAIN_PRE_RELEASE_TAG: vmain
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '18.2'
+      - name: Set BUILT_DATE_TIME
+        run: echo "BUILT_DATE_TIME=$(date -u -Iseconds)" >> $GITHUB_ENV
+
+      - name: Install NPM dependencies
+        run: npm ci
+
+      - name: Run Post Install Script
+        run: |
+          npm run postinstall
+        
+      - name: Generate Windows Binary
+        run: |
+          npm run generate-windows && rm -rf ./bin/
+
+      - name: Build ZIP File
+        run: |
+          node .\scripts\fragment.js
+          mkdir .\${{env.BUILD_DIR_NAME}}
+          Compress-Archive -Path .\bin\* .\${{env.BUILD_DIR_NAME }}\${{ env.RELEASE_ZIP_NAME }}
+
+      - name: Upload to CloudFlare CDN (dev)
+        env:
+          CLOUDFLARE_WORKER_PASSWORD: ${{ secrets.CLOUDFLARE_WORKER_PASSWORD }}
+          CF_BUCKET_DESTINATION: addons/simlink/development
+        run: ./scripts/cdn-cf.sh ${{ env.CF_BUCKET_DESTINATION }} ./build-modules

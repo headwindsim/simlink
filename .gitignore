@@ -2,3 +2,7 @@ node_modules
 bin
 .cache
 .DS_Store
+
+build-modules/
+
+.idea/
