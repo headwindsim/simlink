@@ -334,6 +334,18 @@ app_state.server.get("/groundspeed/:id", (req, res) => {
   pendingSpeed[id].clients.push(res);
 });
 
+const healthServer = express();
+
+healthServer.get("/health", (req, res) => {
+  res.json({ message: "ok" });
+});
+
+healthServer.get("/kill", (req, res) => {
+  process.exit(0);
+});
+
+healthServer.listen(8339);
+
 const s = app_state.server.listen(0, () => {
   app_state.port = s.address().port;
   console.log(app_state.port);
