@@ -31,7 +31,7 @@ jobs:
         
       - name: Generate Windows Binary
         run: |
-          npm run generate-windows && rm -rf ./bin/
+          npm run generate-windows
 
       - name: Build ZIP File
         run: |
