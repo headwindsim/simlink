@@ -1,21 +1,26 @@
 import express from "express";
 import {
+  ClientDataArea,
+  ClientDataOffsetAuto,
+  ClientDataType,
   Connection,
   Receiver,
   SimulatorDataArea,
   SimulatorDataPeriod,
   SimulatorDataType,
-  ClientDataType,
-  ClientDataOffsetAuto,
-  ClientDataArea,
 } from "@flybywiresim/msfs-nodejs";
 import cors from "cors";
 import "./systray.mjs";
+
+const airlines = require('./data/airlines.json')
+const aircrafts = require('./data/aircrafts.json')
 
 const RequestIds = {
   traffic: 1,
   groundspeed: 2,
 };
+
+const networks = ['vatsim', 'ivao'];
 
 const fields = [
   {
@@ -34,6 +39,12 @@ const fields = [
     name: "ATC AIRLINE",
     memberName: "airline",
     type: SimulatorDataType.String64,
+    unit: null,
+  },
+  {
+    name: "ATC FLIGHT NUMBER",
+    memberName: "flightNumber",
+    type: SimulatorDataType.String32,
     unit: null,
   },
   {
@@ -111,6 +122,45 @@ const createDataArea = (port) => {
   app_state.setTick = setInterval(() => area.setData({ port }), 5000);
 };
 
+const getAirline = (callsign) => {
+  if (!callsign || !callsign.length) return null;
+  const airline = airlines.find(
+      (entry) => entry.CALLSIGN.toUpperCase() === callsign.toUpperCase()
+  );
+  
+  if (!airline) {
+    return null;
+  }
+  
+  return airline;
+};
+
+const verifyAirline = (icao) => {
+  if (!icao || !icao.length) return false;
+  return airlines.find(
+      (entry) => entry.ICAO.toUpperCase() === icao.toUpperCase()
+  );
+};
+
+const getAircraft = (type) => {
+  if (!type || !type.length) return null;
+  let aircraft = aircrafts.find(
+      (entry) => entry.DESIGNATOR && entry.DESIGNATOR.toString().toUpperCase() === type.toUpperCase()
+  );
+
+  if(!aircraft) {
+    aircraft = aircrafts.find(
+        (entry) => entry.MODEL && entry.MODEL.toString().toUpperCase().includes(type.toUpperCase())
+    );
+  }
+  
+  if (!aircraft) {
+    return null;
+  }
+
+  return aircraft;
+};
+
 const getVatsimData = async () => {
   const req = await fetch("https://data.vatsim.net/v3/vatsim-data.json");
   const data = await req.json();
@@ -119,18 +169,76 @@ const getVatsimData = async () => {
   }
 };
 
-const getVatsimEntry = async (callsign) => {
-  if (!callsign || !callsign.length || !app_state.vatsim) return null;
-  const cached = app_state.vatsim.map[callsign];
-  if (cached) return cached;
-  const e = app_state.vatsim.pilots.find(
-    (e) => e.callsign.toLowerCase() === callsign.toLowerCase(),
-  );
-  if (e) {
-    app_state.vatsim.map[callsign] = e;
+const getIvaoData = async () => {
+  const req = await fetch("https://api.ivao.aero/v2/tracker/whazzup");
+  const data = await req.json();
+  if (data) {
+    app_state.ivao = { pilots: data.clients.pilots, last: Date.now(), map: {} };
   }
-  return e;
 };
+
+const getNetworkEntry = async (network, callsign) => {
+  if (!callsign || !callsign.length || !app_state[network]) return null;
+
+  const cached = app_state[network].map[callsign];
+  if (cached) return cached;
+
+  const entry = app_state[network].pilots.find(
+      (e) => e.callsign.toLowerCase() === callsign.toLowerCase()
+  );
+
+  if (entry) {
+    app_state[network].map[callsign] = entry;
+  }
+
+  return entry;
+};
+
+const getCallsign = async (airline, flightnumber, atcId, network = null) => {
+  if(network) {
+    const entry = await getNetworkEntry(network, atcId);
+    if (entry) {
+      return entry.callsign;
+    }
+    return;
+  }
+  
+  if (!airline || !flightnumber || !airline.length || !flightnumber.length) return atcId;
+  
+  if(verifyAirline(atcId.substring(0, 3))) {
+    return atcId;
+  }  
+  
+  const airlineIcao = getAirline(airline).ICAO;
+  return `${airlineIcao}${flightnumber}`;
+}
+
+const getWakeTurbulenceCategory = async (callsign, type, network = null) => {
+  if (network) {
+    const typePaths = {
+      vatsim: (entry) => entry.flight_plan?.aircraft_short,
+      ivao: (entry) => entry.flightPlan?.aircraft?.icaoCode
+    };
+
+    const entry = await getNetworkEntry(network, callsign);
+    if (entry) {
+      type = typePaths[network] ? typePaths[network](entry) : null;
+    } else {
+      return;
+    }
+  }
+
+  if (!type || !type.length) return "M"; // Default to "M"
+  const aircraft = getAircraft(type);
+  return aircraft ? aircraft.LEGACY_WTC : "M";
+};
+
+const getData = async (airline, flightnumber, type, atcId, network = null) => {
+  let callsign = await getCallsign(airline, flightnumber, atcId, network);
+  let wtc = await getWakeTurbulenceCategory(atcId, type, network);
+  
+  return { callsign, wtc };
+}
 
 const pending = {};
 const pendingSpeed = {};
@@ -163,7 +271,11 @@ const connect = () => {
     receiver.addCallback("open", (message) => {
       console.log("Simlink connected to MSFS");
       getVatsimData();
-      app_state.vatsim_task = setInterval(() => getVatsimData(), 1000 * 45);
+      getIvaoData()
+      app_state.online_network_task = setInterval(() => {
+        getVatsimData()
+        getIvaoData()
+      }, 1000 * 45);
       app_state.online = true;
       createDataArea(app_state.port);
     });
@@ -171,9 +283,9 @@ const connect = () => {
       app_state.online = false;
       app_state.simConnect = null;
       app_state.clientArea = null;
-      if (app_state.vatsim_task) {
-        clearInterval(app_state.vatsim_task);
-        app_state.vatsim_task = null;
+      if (app_state.online_network_task) {
+        clearInterval(app_state.online_network_task);
+        app_state.online_network_task = null;
       }
       if (app_state.setTick) {
         clearInterval(app_state.setTick);
@@ -190,8 +302,16 @@ const connect = () => {
       ) {
         const { tm, clients } = pending[message.objectId];
         clearTimeout(tm);
-        if (message.content && message.content.atcId)
-          message.content.vatsim = await getVatsimEntry(message.content.atcId);
+        if (message.content && message.content.atcId) {
+          try {            
+            message.content.vatsim = await getData(message.content.airline, message.content.flightNumber, message.content.type, message.content.atcId, 'vatsim');
+            message.content.ivao = await getData(message.content.airline, message.content.flightNumber, message.content.type, message.content.atcId, 'ivao');
+            message.content.msfs = await getData(message.content.airline, message.content.flightNumber, message.content.type, message.content.atcId);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+          
         for (const c of clients) c.json(message.content);
         delete pending[message.objectId];
       } else if (
@@ -232,9 +352,9 @@ const resetConnection = () => {
   app_state.online = false;
   app_state.simConnect = null;
   app_state.clientArea = null;
-  if (app_state.vatsim_task) {
-    clearInterval(app_state.vatsim_task);
-    app_state.vatsim_task = null;
+  if (app_state.online_network_task) {
+    clearInterval(app_state.online_network_task);
+    app_state.online_network_task = null;
   }
   if (app_state.setTick) {
     clearInterval(app_state.setTick);
