@@ -12,8 +12,8 @@ import {
 import cors from "cors";
 import "./systray.mjs";
 
-const airlines = require('./data/airlines.json')
-const aircrafts = require('./data/aircrafts.json')
+import airlines from './data/airlines.json' with { type: 'json' };
+import aircrafts from './data/aircrafts.json' with { type: 'json' };
 
 const RequestIds = {
   traffic: 1,
