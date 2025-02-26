@@ -141,7 +141,7 @@ const verifyAirline = (icao) => {
 const getAircraft = (type) => {
   if (!type || !type.length) return null;
   return aircrafts.find(
-      (entry) => (entry.DESIGNATOR && entry.DESIGNATOR.toString().toUpperCase() === type.toUpperCase()) || (entry.MODEL && entry.MODEL.toString().toUpperCase().includes(type.toUpperCase())
+      (entry) => (entry.DESIGNATOR && entry.DESIGNATOR.toString().toUpperCase() === type.toUpperCase()) || (entry.MODEL && entry.MODEL.toString().toUpperCase().includes(type.toUpperCase()))
   );
 
 };
