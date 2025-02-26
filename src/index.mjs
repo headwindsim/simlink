@@ -207,10 +207,14 @@ const getCallsign = async (airline, flightnumber, atcId, network = null) => {
   
   if(verifyAirline(atcId.substring(0, 3))) {
     return atcId;
-  }  
+  }
+
+  const airlineData = getAirline(airline);
+  if(!airlineData) {
+    return atcId;
+  }
   
-  const airlineIcao = getAirline(airline).ICAO;
-  return `${airlineIcao}${flightnumber}`;
+  return `${airlineData.ICAO}${flightnumber}`;
 }
 
 const getWakeTurbulenceCategory = async (callsign, type, network = null) => {
