@@ -128,10 +128,6 @@ const getAirline = (callsign) => {
       (entry) => entry.CALLSIGN.toUpperCase() === callsign.toUpperCase()
   );
   
-  if (!airline) {
-    return null;
-  }
-  
   return airline;
 };
 
@@ -144,21 +140,10 @@ const verifyAirline = (icao) => {
 
 const getAircraft = (type) => {
   if (!type || !type.length) return null;
-  let aircraft = aircrafts.find(
-      (entry) => entry.DESIGNATOR && entry.DESIGNATOR.toString().toUpperCase() === type.toUpperCase()
+  return aircrafts.find(
+      (entry) => (entry.DESIGNATOR && entry.DESIGNATOR.toString().toUpperCase() === type.toUpperCase()) || (entry.MODEL && entry.MODEL.toString().toUpperCase().includes(type.toUpperCase())
   );
 
-  if(!aircraft) {
-    aircraft = aircrafts.find(
-        (entry) => entry.MODEL && entry.MODEL.toString().toUpperCase().includes(type.toUpperCase())
-    );
-  }
-  
-  if (!aircraft) {
-    return null;
-  }
-
-  return aircraft;
 };
 
 const getVatsimData = async () => {
@@ -200,7 +185,7 @@ const getCallsign = async (airline, flightnumber, atcId, network = null) => {
     if (entry) {
       return entry.callsign;
     }
-    return;
+    return atcId;
   }
   
   if (!airline || !flightnumber || !airline.length || !flightnumber.length) return atcId;
@@ -228,7 +213,7 @@ const getWakeTurbulenceCategory = async (callsign, type, network = null) => {
     if (entry) {
       type = typePaths[network] ? typePaths[network](entry) : null;
     } else {
-      return;
+      return "M";
     }
   }
 
@@ -275,10 +260,10 @@ const connect = () => {
     receiver.addCallback("open", (message) => {
       console.log("Simlink connected to MSFS");
       getVatsimData();
-      getIvaoData()
+      getIvaoData();
       app_state.online_network_task = setInterval(() => {
-        getVatsimData()
-        getIvaoData()
+        getVatsimData();
+        getIvaoData();
       }, 1000 * 45);
       app_state.online = true;
       createDataArea(app_state.port);
@@ -307,16 +292,16 @@ const connect = () => {
         const { tm, clients } = pending[message.objectId];
         clearTimeout(tm);
         if (message.content && message.content.atcId) {
-          try {            
-            message.content.vatsim = await getData(message.content.airline, message.content.flightNumber, message.content.type, message.content.atcId, 'vatsim');
-            message.content.ivao = await getData(message.content.airline, message.content.flightNumber, message.content.type, message.content.atcId, 'ivao');
-            message.content.msfs = await getData(message.content.airline, message.content.flightNumber, message.content.type, message.content.atcId);
+  
+        for (const c of clients) {
+        try {            
+            message.content[c.type || "msfs"] = await getData(message.content.airline, message.content.flightNumber, message.content.type, message.content.atcId, c.type);
           } catch (e) {
             console.error(e);
           }
         }
-          
-        for (const c of clients) c.json(message.content);
+        c.res.json(message.content);
+        }
         delete pending[message.objectId];
       } else if (
         message.definitionId == RequestIds.groundspeed &&
@@ -378,6 +363,7 @@ app_state.server.get("/data/:id", (req, res) => {
     res.status(404).json({});
     return;
   }
+  const networkType = req.query.n || null;
   const id = Number.parseInt(req.params.id);
   console.log("Received request for object:", id);
   if (failed[id]) {
@@ -410,7 +396,7 @@ app_state.server.get("/data/:id", (req, res) => {
   } else {
     console.warn("batch more then one request", id);
   }
-  pending[id].clients.push(res);
+  pending[id].clients.push({res, type: networkType});
 });
 
 app_state.server.get("/groundspeed/:id", (req, res) => {
