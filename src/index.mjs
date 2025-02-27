@@ -308,8 +308,8 @@ const connect = () => {
             } catch (e) {
               console.error(e);
             }
+            c.res.json(message.content);
           }
-          c.res.json(message.content);
         }
         delete pending[message.objectId];
       } else if (
