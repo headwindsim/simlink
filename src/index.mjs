@@ -308,8 +308,13 @@ const connect = () => {
             } catch (e) {
               console.error(e);
             }
+            c.res.json(message.content);
           }
-          c.res.json(message.content);
+        } else {
+          for (const c of clients) {
+            c.res.status(500);
+            c.res.json({ message: "no message content" });
+          }
         }
         delete pending[message.objectId];
       } else if (
